@@ -124,8 +124,45 @@
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
-        
 
+        <dependency>
+          <groupId>io.lettuce</groupId>
+          <artifactId>lettuce-core</artifactId>
+          <version>5.1.0.M1</version>
+        </dependency>
+  
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>2.12.0</version>
+        </dependency>  
+        
+            <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>4.1.25.Final</version>
+    </dependency>
+        
+            <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-all</artifactId>
+        <version>4.1.25.Final</version>
+    </dependency>
+    
+<!--     https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12 
+--><dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-simple</artifactId>
+    <version>1.7.25</version>
+</dependency>
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-api</artifactId>
+    <version>1.7.25</version>
+</dependency>
+
+        
+        
 <!--        <dependency>
             <groupId>fr.inria</groupId>
             <artifactId>papart</artifactId>
@@ -240,7 +277,7 @@
                 </executions>
             </plugin>
             
-<!--            <plugin>
+            <!--            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
