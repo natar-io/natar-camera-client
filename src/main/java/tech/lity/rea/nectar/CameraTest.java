@@ -15,6 +15,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.ParseException;
 import redis.clients.jedis.BinaryJedisPubSub;
 import redis.clients.jedis.Jedis;
@@ -27,7 +28,8 @@ import redis.clients.jedis.Jedis;
 public class CameraTest extends PApplet {
 
     Jedis redis;
-    int[] incomingPixels;
+//    int[] incomingPixels;
+    PImage receivedPx;
 
     @Override
     public void settings() {
@@ -37,88 +39,90 @@ public class CameraTest extends PApplet {
 
     @Override
     public void setup() {
-        connectRedist();
-        noLoop();
-        incomingPixels = new int[640 * 480];
-//        byte[] id = defaultName.getBytes();
-//        // Subscribe tests
-//        MyListener l = new MyListener();
-////        byte[] id = defaultName.getBytes();
-//        redis.subscribe(l, id);
-        new RedisThread().start();
+        connectRedis();
+
+        int w = 640, h = 480;
+
+        try {
+            w = Integer.parseInt(redis.get(input + ":width"));
+            h = Integer.parseInt(redis.get(input + ":height"));
+        } catch (Exception e) {
+            System.err.println("Cannot get image size, using 640x480.");
+        }
+        
+        receivedPx = createImage(w, h, RGB);
+        if (isUnique) {
+            setImage(redis.get(input.getBytes()));
+        } else {
+//            noLoop();
+            new RedisThread().start();
+        }
     }
 
     class RedisThread extends Thread {
 
         public void run() {
-            byte[] id = defaultName.getBytes();
+            byte[] id = input.getBytes();
             // Subscribe tests
             MyListener l = new MyListener();
 //        byte[] id = defaultName.getBytes();
-            redis.subscribe(l, id);
 
+            redis.subscribe(l, id);
         }
     }
 
-    void connectRedist() {
-        redis = new Jedis("127.0.0.1", 6379);
+    void connectRedis() {
+        redis = new Jedis(host, port);
         // redis.auth("156;2Asatu:AUI?S2T51235AUEAIU");
     }
 
     @Override
     public void draw() {
-
         background(255);
-        loadPixels();
-        System.arraycopy(incomingPixels, 0, this.pixels, 0, 640 * 480);
-        updatePixels();
+        image(receivedPx, 0, 0, width, height);
+    }
+
+    private void updateImage() {
+        if (isUnique) {
+            setImage(redis.get(input.getBytes()));
+            log("Image updated", "");
+        }
+    }
+
+    public void keyPressed() {
+        updateImage();
     }
 
     public void setImage(byte[] message) {
-        ByteArrayInputStream bis = new ByteArrayInputStream(message);
-        ObjectInput in = null;
-        try {
-            in = new ObjectInputStream(bis);
-            Object o = in.readObject();
-            byte[] px = (byte[]) o;
-            byteToInt(px, true, incomingPixels);
-        } catch (IOException ex) {
-            println("unpack issue " + ex);
-        } catch (Exception ex) {
-            println("unpack issue2 " + ex);
-            ex.printStackTrace();
-        } finally {
-            try {
-                if (in != null) {
-                    in.close();
-                }
-            } catch (IOException ex) {
-                println("Reading issue");
-                // ignore close exception
+
+        receivedPx.loadPixels();
+        int[] px = receivedPx.pixels;
+
+        if (message == null || message.length != px.length * 3) {
+            if (message == null) {
+                die("Cannot get the image in redis.");
+            } else {
+                die("Cannot get the image: or size mismatch.");
             }
         }
-    }
-
-    public void byteToInt(byte[] incomingImg, boolean RGB, int[] outputImg) {
-        assert (incomingImg.length == 3 * outputImg.length);
-
-        // WidthStep to take into account ?!!
+        byte[] incomingImg = message;
         int k = 0;
-        for (int j = 0; j < outputImg.length; j++) {
-            byte b = incomingImg[k++];
-            byte g = incomingImg[k++];
+        for (int i = 0; i < message.length / 3; i++) {
             byte r = incomingImg[k++];
-            outputImg[j] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+            byte g = incomingImg[k++];
+            byte b = incomingImg[k++];
+            px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
         }
+        receivedPx.updatePixels();
     }
 
     class MyListener extends BinaryJedisPubSub {
 
         @Override
         public void onMessage(byte[] channel, byte[] message) {
-            System.out.println("Message received ");
+            log("Image received.", "");
             setImage(message);
-            redraw();
+//            redraw();
         }
 
         @Override
@@ -141,88 +145,99 @@ public class CameraTest extends PApplet {
         public void onPMessage(byte[] pattern, byte[] channel, byte[] message) {
         }
     }
-//
-//    class MyListener extends JedisPubSub {
-//
-//        public void onMessage(String channel, String message) {
-//        }
-//
-//        public void onSubscribe(String channel, int subscribedChannels) {
-//        }
-//
-//        public void onUnsubscribe(String channel, int subscribedChannels) {
-//        }
-//
-//        public void onPSubscribe(String pattern, int subscribedChannels) {
-//        }
-//
-//        public void onPUnsubscribe(String pattern, int subscribedChannels) {
-//        }
-//
-//        public void onPMessage(String pattern, String channel, String message) {
-//        }
-//    }
 
-    // TODO: add hostname ?
-    public static final String OUTPUT_PREFIX = "nectar:";
-    public static final String OUTPUT_PREFIX2 = ":camera-server:camera";
-    public static final String REDIS_PORT = "6379";
+    static String defaultName = "camera";
+    static Options options = new Options();
 
-    static String defaultHost = "jiii-mi";
-    static String defaultName = OUTPUT_PREFIX + defaultHost + OUTPUT_PREFIX2 + "#0";
+    public static final int REDIS_PORT = 6379;
+    public static final String REDIS_HOST = "localhost";
+    static private String input = "marker";
+    static private String host = REDIS_HOST;
+    static private int port = REDIS_PORT;
+    static private boolean isUnique = false;
+
+    static boolean isVerbose = false;
+    static boolean isSilent = false;
 
     /**
      * @param passedArgs the command line arguments
      */
     static public void main(String[] passedArgs) {
+        checkArguments(passedArgs);
 
-        Options options = new Options();
-//         options.addOption("i", "input", true, "Input line in Redis if any.");
-        options.addOption("o", "output", true, "Output line in Redis if any, default is:" + defaultName);
-        options.addOption("rp", "redisport", true, "Redis port, default is: " + REDIS_PORT);
-        options.addOption("rh", "redishost", true, "Redis host, default is: 127.0.0.1");
-        options.addOption("h", "host", true, "this computer's name.");
-
-        CommandLineParser parser = new DefaultParser();
-        try {
-            CommandLine cmd = parser.parse(options, passedArgs);
-
-            if (cmd.hasOption("o")) {
-                String output = cmd.getOptionValue("o");
-
-                System.out.println("Output: " + output);
-            } else {
-                System.out.println("No output value"); // print the date
-                System.out.println("Default output: " + defaultName); // print the date
-            }
-
-        } catch (ParseException ex) {
-            Logger.getLogger(CameraTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-//        if (passedArgs != null) {
-//            PApplet.main(concat(appletArgs, passedArgs));
-//        } else {
         String[] appletArgs = new String[]{tech.lity.rea.nectar.CameraTest.class.getName()};
         PApplet.main(appletArgs);
-//        }
     }
 
-//        public byte[] intToBytes(int my_int) throws IOException {
-//        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-//        ObjectOutput out = new ObjectOutputStream(bos);
-//        out.writeInt(my_int);
-//        out.close();
-//        byte[] int_bytes = bos.toByteArray();
-//        bos.close();
-//        return int_bytes;
-//    }
-//
-//    public int bytesToInt(byte[] int_bytes) throws IOException {
-//        ByteArrayInputStream bis = new ByteArrayInputStream(int_bytes);
-//        ObjectInputStream ois = new ObjectInputStream(bis);
-//        int my_int = ois.readInt();
-//        ois.close();
-//        return my_int;
-//    }
+    private static void checkArguments(String[] passedArgs) {
+        options = new Options();
+
+//        public static Camera createCamera(Camera.Type type, String description, String format)
+//        options.addRequiredOption("i", "input", true, "Input key of marker locations.");
+        // Generic options
+        options.addOption("h", "help", false, "print this help.");
+        options.addOption("v", "verbose", false, "Verbose activated.");
+        options.addOption("s", "silent", false, "Silent activated.");
+        options.addOption("u", "unique", false, "Unique mode, run only once and use get/set instead of pub/sub");
+        options.addRequiredOption("i", "input", true, "Inpput key for the image.");
+        options.addOption("rp", "redisport", true, "Redis port, default is: " + REDIS_PORT);
+        options.addOption("rh", "redishost", true, "Redis host, default is: " + REDIS_HOST);
+
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cmd;
+
+        // -u -i markers -cc data/calibration-AstraS-rgb.yaml -mc data/A4-default.svg -o pose
+        try {
+            cmd = parser.parse(options, passedArgs);
+
+            if (cmd.hasOption("i")) {
+                input = cmd.getOptionValue("i");
+            }
+
+            if (cmd.hasOption("h")) {
+                die("", true);
+            }
+
+            if (cmd.hasOption("u")) {
+                isUnique = true;
+            }
+            if (cmd.hasOption("v")) {
+                isVerbose = true;
+            }
+            if (cmd.hasOption("s")) {
+                isSilent = true;
+            }
+            if (cmd.hasOption("rh")) {
+                host = cmd.getOptionValue("rh");
+            }
+            if (cmd.hasOption("rp")) {
+                port = Integer.parseInt(cmd.getOptionValue("rp"));
+            }
+        } catch (ParseException ex) {
+            die(ex.toString(), true);
+        }
+
+    }
+
+    public static void die(String why, boolean usage) {
+        if (usage) {
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp("CameraTest", options);
+        }
+        System.out.println(why);
+        System.exit(-1);
+    }
+
+    public static void log(String normal, String verbose) {
+        if (isSilent) {
+            return;
+        }
+        if (normal != null) {
+            System.out.println(normal);
+        }
+        if (isVerbose && verbose != null) {
+            System.out.println(verbose);
+        }
+    }
+
 }
