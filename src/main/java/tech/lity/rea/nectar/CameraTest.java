@@ -28,6 +28,7 @@ import redis.clients.jedis.Jedis;
 public class CameraTest extends PApplet {
 
     Jedis redis;
+    String format;
 //    int[] incomingPixels;
     PImage receivedPx;
 
@@ -46,10 +47,11 @@ public class CameraTest extends PApplet {
         try {
             w = Integer.parseInt(redis.get(input + ":width"));
             h = Integer.parseInt(redis.get(input + ":height"));
+            format = redis.get(input + ":pixelformat");
         } catch (Exception e) {
             System.err.println("Cannot get image size, using 640x480.");
         }
-        
+
         receivedPx = createImage(w, h, RGB);
         if (isUnique) {
             setImage(redis.get(input.getBytes()));
@@ -107,12 +109,24 @@ public class CameraTest extends PApplet {
         }
         byte[] incomingImg = message;
         int k = 0;
-        for (int i = 0; i < message.length / 3; i++) {
-            byte r = incomingImg[k++];
-            byte g = incomingImg[k++];
-            byte b = incomingImg[k++];
-            px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+
+        if (format != null && format.equals("BGR")) {
+            for (int i = 0; i < message.length / 3; i++) {
+                byte b = incomingImg[k++];
+                byte g = incomingImg[k++];
+                byte r = incomingImg[k++];
+                px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+            }
+
+        } else {
+            for (int i = 0; i < message.length / 3; i++) {
+                byte r = incomingImg[k++];
+                byte g = incomingImg[k++];
+                byte b = incomingImg[k++];
+                px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+            }
         }
+
         receivedPx.updatePixels();
     }
 
