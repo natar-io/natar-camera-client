@@ -8,6 +8,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,6 +32,7 @@ public class CameraTest extends PApplet {
     String format;
 //    int[] incomingPixels;
     PImage receivedPx;
+    int widthStep = 0;
 
     @Override
     public void settings() {
@@ -43,11 +45,14 @@ public class CameraTest extends PApplet {
         connectRedis();
 
         int w = 640, h = 480;
+        widthStep = w * 3;
 
         try {
             w = Integer.parseInt(redis.get(input + ":width"));
             h = Integer.parseInt(redis.get(input + ":height"));
+            widthStep = w;
             format = redis.get(input + ":pixelformat");
+            widthStep = Integer.parseInt(redis.get(input + ":widthStep"));
         } catch (Exception e) {
             System.err.println("Cannot get image size, using 640x480.");
         }
@@ -108,22 +113,55 @@ public class CameraTest extends PApplet {
             }
         }
         byte[] incomingImg = message;
+
+        int w = widthStep;
+        byte[] lineArray = new byte[w];
         int k = 0;
+
+        int skip = 0;
+        int sk = 0;
+        if (this.widthStep != receivedPx.width) {
+            skip = widthStep - (receivedPx.width * 3);
+        }
+        System.out.println("Widthstep "  + widthStep + " w " + receivedPx.width + " Skip: " + skip);
 
         if (format != null && format.equals("BGR")) {
             for (int i = 0; i < message.length / 3; i++) {
+
+                if (k >= message.length - 3) {
+                    break;
+                }
+
                 byte b = incomingImg[k++];
                 byte g = incomingImg[k++];
                 byte r = incomingImg[k++];
                 px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+
+                sk += 3;
+                if (sk == receivedPx.width * 3) {
+                    k += skip;
+                    sk = 0;
+                }
             }
 
         } else {
             for (int i = 0; i < message.length / 3; i++) {
+
+                if (k >= message.length - 3) {
+                    break;
+                }
+
                 byte r = incomingImg[k++];
                 byte g = incomingImg[k++];
                 byte b = incomingImg[k++];
                 px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+
+                sk += 3;
+                if (sk == receivedPx.width * 3) {
+                    k += skip;
+                    sk = 0;
+                }
+
             }
         }
 
