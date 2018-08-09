@@ -28,7 +28,7 @@ import redis.clients.jedis.Jedis;
 @SuppressWarnings("serial")
 public class CameraTest extends PApplet {
 
-    Jedis redis;
+    Jedis redisSub, redisGet;
     String format;
 //    int[] incomingPixels;
     PImage receivedPx;
@@ -48,18 +48,18 @@ public class CameraTest extends PApplet {
         widthStep = w * 3;
 
         try {
-            w = Integer.parseInt(redis.get(input + ":width"));
-            h = Integer.parseInt(redis.get(input + ":height"));
+            w = Integer.parseInt(redisGet.get(input + ":width"));
+            h = Integer.parseInt(redisGet.get(input + ":height"));
             widthStep = w;
-            format = redis.get(input + ":pixelformat");
-            widthStep = Integer.parseInt(redis.get(input + ":widthStep"));
+            format = redisGet.get(input + ":pixelformat");
+            widthStep = Integer.parseInt(redisGet.get(input + ":widthStep"));
         } catch (Exception e) {
             System.err.println("Cannot get image size, using 640x480.");
         }
 
         receivedPx = createImage(w, h, RGB);
         if (isUnique) {
-            setImage(redis.get(input.getBytes()));
+            setImage(redisGet.get(input.getBytes()));
         } else {
 //            noLoop();
             new RedisThread().start();
@@ -73,14 +73,19 @@ public class CameraTest extends PApplet {
             // Subscribe tests
             MyListener l = new MyListener();
 //        byte[] id = defaultName.getBytes();
-
-            redis.subscribe(l, id);
+            
+            redisSub = createRedis();
+            redisSub.subscribe(l, id);
         }
     }
 
     void connectRedis() {
-        redis = new Jedis(host, port);
+        redisGet = createRedis();
         // redis.auth("156;2Asatu:AUI?S2T51235AUEAIU");
+    }
+    
+    Jedis createRedis() {
+        return new Jedis(host, port);
     }
 
     @Override
@@ -90,10 +95,8 @@ public class CameraTest extends PApplet {
     }
 
     private void updateImage() {
-        if (isUnique) {
-            setImage(redis.get(input.getBytes()));
-            log("Image updated", "");
-        }
+        setImage(redisGet.get(input.getBytes()));
+        log("Image updated", "");
     }
 
     public void keyPressed() {
@@ -172,9 +175,7 @@ public class CameraTest extends PApplet {
 
         @Override
         public void onMessage(byte[] channel, byte[] message) {
-            log("Image received.", "");
-            setImage(message);
-//            redraw();
+            updateImage();
         }
 
         @Override
