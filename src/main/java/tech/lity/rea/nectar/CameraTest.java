@@ -100,7 +100,7 @@ public class CameraTest extends PApplet {
     }
 
     public void keyPressed() {
-        updateImage();
+       // updateImage();
     }
 
     public void setImage(byte[] message) {
@@ -126,7 +126,7 @@ public class CameraTest extends PApplet {
         if (this.widthStep != receivedPx.width) {
             skip = widthStep - (receivedPx.width * 3);
         }
-        System.out.println("Widthstep "  + widthStep + " w " + receivedPx.width + " Skip: " + skip);
+//        System.out.println("Widthstep "  + widthStep + " w " + receivedPx.width + " Skip: " + skip);
 
         if (format != null && format.equals("BGR")) {
             for (int i = 0; i < message.length / 3; i++) {
