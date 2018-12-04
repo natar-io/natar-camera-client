@@ -33,17 +33,23 @@ public class CameraTest extends PApplet {
 //    int[] incomingPixels;
     PImage receivedPx;
     int widthStep = 0;
+    int channels = 3;
 
     @Override
     public void settings() {
         // the application will be rendered in full screen, and using a 3Dengine.
-        size(640, 480, P3D);
+        if (isFullScreen) {
+            fullScreen(P3D);
+        } else {
+            size(640, 480, P3D);
+
+        }
     }
 
     @Override
     public void setup() {
         connectRedis();
-
+        frame.setResizable(true);
         int w = 640, h = 480;
         widthStep = w * 3;
 
@@ -52,9 +58,20 @@ public class CameraTest extends PApplet {
             h = Integer.parseInt(redisGet.get(input + ":height"));
             widthStep = w;
             format = redisGet.get(input + ":pixelformat");
-            widthStep = Integer.parseInt(redisGet.get(input + ":widthStep"));
+            if (format.equals("RGB") || format.equals("BGR")) {
+                channels = 3;
+            }
+            if (format.equals("RGBA") || format.equals("ARGB")) {
+                channels = 4;
+            }
+            String wi = redisGet.get(input + ":widthStep");
+            if (wi != null) {
+                widthStep = Integer.parseInt(wi);
+            }
         } catch (Exception e) {
+            System.err.println(e);
             System.err.println("Cannot get image size, using 640x480.");
+            e.printStackTrace();;
         }
 
         receivedPx = createImage(w, h, RGB);
@@ -73,7 +90,7 @@ public class CameraTest extends PApplet {
             // Subscribe tests
             MyListener l = new MyListener();
 //        byte[] id = defaultName.getBytes();
-            
+
             redisSub = createRedis();
             redisSub.subscribe(l, id);
         }
@@ -83,7 +100,7 @@ public class CameraTest extends PApplet {
         redisGet = createRedis();
         // redis.auth("156;2Asatu:AUI?S2T51235AUEAIU");
     }
-    
+
     Jedis createRedis() {
         return new Jedis(host, port);
     }
@@ -100,7 +117,7 @@ public class CameraTest extends PApplet {
     }
 
     public void keyPressed() {
-       // updateImage();
+        // updateImage();
     }
 
     public void setImage(byte[] message) {
@@ -108,11 +125,11 @@ public class CameraTest extends PApplet {
         receivedPx.loadPixels();
         int[] px = receivedPx.pixels;
 
-        if (message == null || message.length != px.length * 3) {
+        if (message == null || message.length != px.length * channels) {
             if (message == null) {
                 die("Cannot get the image in redis.");
             } else {
-                die("Cannot get the image: or size mismatch.");
+                die("Cannot get the image: or size mismatch, " + "m: " + message.length + " px: " + px.length * channels);
             }
         }
         byte[] incomingImg = message;
@@ -148,23 +165,45 @@ public class CameraTest extends PApplet {
             }
 
         } else {
-            for (int i = 0; i < message.length / 3; i++) {
 
-                if (k >= message.length - 3) {
-                    break;
+            if (format.equals("RGB")) {
+                for (int i = 0; i < message.length / 3; i++) {
+                    if (k >= message.length - 3) {
+                        break;
+                    }
+                    byte r = incomingImg[k++];
+                    byte g = incomingImg[k++];
+                    byte b = incomingImg[k++];
+                    px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+
+                    sk += 3;
+                    if (sk == receivedPx.width * 3) {
+                        k += skip;
+                        sk = 0;
+                    }
                 }
+            } else {
 
-                byte r = incomingImg[k++];
-                byte g = incomingImg[k++];
-                byte b = incomingImg[k++];
-                px[i] = (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+                // TODO: really handle ARGB and RGBA ?
+                if (format.equals("ARGB") || format.equals("RGBA")) {
+                    for (int i = 0; i < message.length / 4; i++) {
+                        if (k >= message.length - 4) {
+                            break;
+                        }
+                        byte a = incomingImg[k++];
+                        byte r = incomingImg[k++];
+                        byte g = incomingImg[k++];
+                        byte b = incomingImg[k++];
 
-                sk += 3;
-                if (sk == receivedPx.width * 3) {
-                    k += skip;
-                    sk = 0;
+                        px[i] = (a & 255) << 24 | (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+
+                        sk += 4;
+                        if (sk == receivedPx.width * 4) {
+                            k += skip;
+                            sk = 0;
+                        }
+                    }
                 }
-
             }
         }
 
@@ -211,6 +250,7 @@ public class CameraTest extends PApplet {
 
     static boolean isVerbose = false;
     static boolean isSilent = false;
+    static boolean isFullScreen = false;
 
     /**
      * @param passedArgs the command line arguments
@@ -231,6 +271,7 @@ public class CameraTest extends PApplet {
         options.addOption("h", "help", false, "print this help.");
         options.addOption("v", "verbose", false, "Verbose activated.");
         options.addOption("s", "silent", false, "Silent activated.");
+        options.addOption("f", "fullscreen", false, "Fullscreen mode.");
         options.addOption("u", "unique", false, "Unique mode, run only once and use get/set instead of pub/sub");
         options.addRequiredOption("i", "input", true, "Inpput key for the image.");
         options.addOption("rp", "redisport", true, "Redis port, default is: " + REDIS_PORT);
@@ -259,6 +300,9 @@ public class CameraTest extends PApplet {
             }
             if (cmd.hasOption("s")) {
                 isSilent = true;
+            }
+            if (cmd.hasOption("f")) {
+                isFullScreen = true;
             }
             if (cmd.hasOption("rh")) {
                 host = cmd.getOptionValue("rh");
