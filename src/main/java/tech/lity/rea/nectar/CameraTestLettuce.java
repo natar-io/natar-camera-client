@@ -1,21 +1,15 @@
 package tech.lity.rea.nectar;
 
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisStringCommands;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.pubsub.RedisPubSubListener;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import io.lettuce.core.pubsub.api.async.RedisPubSubAsyncCommands;
 import io.lettuce.core.pubsub.api.sync.RedisPubSubCommands;
 import processing.core.*;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,8 +18,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
-import redis.clients.jedis.BinaryJedisPubSub;
-import redis.clients.jedis.Jedis;
 
 /**
  *
@@ -34,7 +26,6 @@ import redis.clients.jedis.Jedis;
 @SuppressWarnings("serial")
 public class CameraTestLettuce extends PApplet {
 
-    Jedis redis;
     int[] incomingPixels;
 
     @Override
