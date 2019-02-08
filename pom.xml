@@ -48,16 +48,10 @@
  
         <dependency>
             <groupId>tech.lity.rea</groupId>
-            <artifactId>nectar-helpers</artifactId>
-            <version>0.1-SNAPSHOT</version>
+            <artifactId>nectar-core</artifactId>
+            <version>0.1</version>
         </dependency>
  
-        <dependency>
-            <groupId>org.processing</groupId>
-            <artifactId>core</artifactId>
-            <version>3.3.7</version>
-        </dependency>
-
         <!--Processing OpenGL-->
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
@@ -126,7 +120,7 @@
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>3.0.0-m1</version>
+            <version>2.9.0</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -161,7 +155,7 @@
                 </configuration>
             </plugin>
             
-            <plugin>
+<!--            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
@@ -184,7 +178,7 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
             
             <!--            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
