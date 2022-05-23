@@ -1,3 +1,7 @@
+# Camera viewer
+
+## Deprecated with PapARt 1.6
+
 
 Run the example:
 
